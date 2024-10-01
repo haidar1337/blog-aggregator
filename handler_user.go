@@ -57,6 +57,37 @@ func handlerLogin(s *state, cmd command) error {
 	return nil
 }
 
+func reset(s *state, cmd command) error {
+	err := s.db.DeleteUsers(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to reset database: %w", err)
+	}
+
+	fmt.Println("database reset successfully")
+	return nil
+}
+
+func handlerGetUsers(s *state, cmd command) error {
+	users, err := s.db.GetUsers(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to query database: %w", err)
+	}
+	current := s.config.CurrentUser
+
+	printUsersList(users, current)
+	return nil
+}
+
+func printUsersList(users []database.User, current string) {
+	for _, u := range users {
+		if u.Name == current {
+			fmt.Printf("* %s (current)\n", u.Name)
+			continue
+		}
+		fmt.Printf("* %s\n", u.Name)
+	}
+}
+
 func printUserDetails(u database.User) {
 	fmt.Printf("** ID: %v\n", u.ID)
 	fmt.Printf("** Name: %v\n", u.Name)
