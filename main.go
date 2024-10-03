@@ -36,6 +36,9 @@ func main() {
 	commands.register("register", handlerRegister)
 	commands.register("users", handlerGetUsers)
 	commands.register("reset", reset)
+	commands.register("agg", handlerAgg)
+	commands.register("addfeed", handlerAddFeed)
+	commands.register("feeds", handlerFeeds)
 
 	args := os.Args
 	if len(args) < 2 {
@@ -44,7 +47,9 @@ func main() {
 	}
 	cmdArgs := make([]string, 0)
 	if len(args) > 2 {
-		cmdArgs = append(cmdArgs, args[2])
+		for i := 2; i < len(args); i++ {
+			cmdArgs = append(cmdArgs, args[i])
+		}
 	}
 	cmdName := args[1]
 	cmd := command{
@@ -57,5 +62,4 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println(cfg)
 }
