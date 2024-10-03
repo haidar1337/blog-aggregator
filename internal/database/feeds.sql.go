@@ -7,7 +7,6 @@ package database
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -29,8 +28,8 @@ RETURNING id, user_id, feed_name, feed_url, created_at, updated_at
 
 type CreateFeedParams struct {
 	ID        uuid.UUID
-	FeedName  sql.NullString
-	FeedUrl   sql.NullString
+	FeedName  string
+	FeedUrl   string
 	UserID    uuid.UUID
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -57,27 +56,28 @@ func (q *Queries) CreateFeed(ctx context.Context, arg CreateFeedParams) (Feed, e
 	return i, err
 }
 
-const getFeeds = `-- name: GetFeeds :many
-SELECT id, user_id, feed_name, feed_url, created_at, updated_at FROM feeds
+const getFeedsWithUsers = `-- name: GetFeedsWithUsers :many
+SELECT feed_name, feed_url, users.name FROM feeds
+INNER JOIN users
+ON users.id = feeds.user_id
 `
 
-func (q *Queries) GetFeeds(ctx context.Context) ([]Feed, error) {
-	rows, err := q.db.QueryContext(ctx, getFeeds)
+type GetFeedsWithUsersRow struct {
+	FeedName string
+	FeedUrl  string
+	Name     string
+}
+
+func (q *Queries) GetFeedsWithUsers(ctx context.Context) ([]GetFeedsWithUsersRow, error) {
+	rows, err := q.db.QueryContext(ctx, getFeedsWithUsers)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Feed
+	var items []GetFeedsWithUsersRow
 	for rows.Next() {
-		var i Feed
-		if err := rows.Scan(
-			&i.ID,
-			&i.UserID,
-			&i.FeedName,
-			&i.FeedUrl,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
+		var i GetFeedsWithUsersRow
+		if err := rows.Scan(&i.FeedName, &i.FeedUrl, &i.Name); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
