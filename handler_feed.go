@@ -29,15 +29,9 @@ type RSSItem struct {
 	PubDate     string `xml:"pubDate"`
 }
 
-func handlerAddFeed(s *state, cmd command) error {
+func handlerAddFeed(s *state, cmd command, user database.User) error {
 	if len(cmd.args) < 2 {
 		return fmt.Errorf("name and url of feed are required, gator addfeed <name> <url>")
-	}
-
-	currentUser := s.config.CurrentUser
-	user, err := s.db.GetUser(context.Background(), currentUser)
-	if err != nil {
-		return fmt.Errorf("current user %s could not be retrieved from database: %w", currentUser, err)
 	}
 
 	feed_name := cmd.args[0]
