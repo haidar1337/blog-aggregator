@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/xml"
 	"fmt"
 	"html"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -79,12 +81,74 @@ func handlerFeeds(s *state, cmd command) error {
 }
 
 func handlerAgg(s *state, cmd command) error {
-	feed, err := fetchFeed(context.Background(), "https://wagslane.dev/index.xml")
+	if len(cmd.args) < 1 {
+		return fmt.Errorf("time between requests is required. gator agg <time_between_reqs>")
+	}
+
+	t, err := time.ParseDuration(cmd.args[0])
+	if err != nil {
+		return fmt.Errorf("invalid time value: %w", err)
+	}
+
+	ticker := time.NewTicker(t)
+	for ; ; <-ticker.C {
+		scrapeFeeds(s)
+	}
+}
+
+func scrapeFeeds(s *state) error {
+	next, err := s.db.GetNextFeedToFetch(context.Background())
+	if err != nil {
+		return fmt.Errorf("could not get next feed: %w", err)
+	}
+
+	err = s.db.MarkFeedFetched(context.Background(), next.ID)
+	if err != nil {
+		return fmt.Errorf("could not mark feed as fetched: %w", err)
+	}
+
+	feed, err := fetchFeed(context.Background(), next.FeedUrl)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println(feed)
+	for _, post := range feed.Channel.Item {
+		published_at, err := time.Parse("RFC1123Z", post.PubDate)
+		description := sql.NullString{
+			String: post.Description,
+			Valid:  true,
+		}
+		var parsed sql.NullTime
+		if err != nil {
+			parsed = sql.NullTime{
+				Time: time.Time{},
+			}
+		} else {
+			parsed = sql.NullTime{
+				Time:  published_at,
+				Valid: true,
+			}
+		}
+		_, err = s.db.CreatePost(context.Background(), database.CreatePostParams{
+			ID:          uuid.New(),
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+			FeedID:      next.ID,
+			Url:         post.Link,
+			PublishedAt: parsed,
+			Description: description,
+			Title:       post.Title,
+		})
+
+		if err != nil {
+			if !strings.Contains(err.Error(), "duplicate key") {
+				fmt.Println(err)
+			}
+			fmt.Printf("could not create post: %v", err)
+			continue
+		}
+	}
+
 	return nil
 }
 
