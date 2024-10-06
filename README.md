@@ -11,7 +11,7 @@ You must have Postgres and Go's toolchain to run this program. You can download 
 ## Installation
 Install the CLI tool using
 ```bash
-go install github.com/haidar1337/gator
+go install github.com/haidar1337/gator@latest
 ```
 
 After installing the tool, create a config file `.gatorconfig.json` in your home directory with the following structure:
